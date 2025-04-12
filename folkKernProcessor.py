@@ -69,7 +69,7 @@ for file in kern_files:
             'genre': "folk",
             'year': year if year else "Unknown",
             'language': language,
-            'path': file
+            'path': "folkKern" + file.split("/folkKern", 1)[1]
         }
 
     except Exception as e:
@@ -79,5 +79,5 @@ for file in kern_files:
 df = df[df['language'] != "Unknown"]
 print(df.head())
 # Save to CSV
-df.to_csv(dataset+'/folkKern_data.csv', index=False)
+df.to_csv('data'+'/folkKern_data.csv', index=False)
 
