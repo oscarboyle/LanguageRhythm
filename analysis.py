@@ -15,7 +15,7 @@ sns.set(style="whitegrid")
 plt.rcParams["figure.figsize"] = (10, 6)
 
 # Load data
-df = pd.read_csv("/Users/elenanieto/Documents/SMC/AMPLAB/env/features/notAnnotatedWiki_rhythmic_features.csv")
+df = pd.read_csv("/Users/elenanieto/Documents/SMC/AMPLAB/env/all_features_cleaned_filtered.csv", encoding='ISO-8859-1')
 
 # List of rhythmic descriptors
 rhythmic_features = [
@@ -32,7 +32,11 @@ for feature in rhythmic_features:
 # Boxplots / Violin plots by language
 for feature in rhythmic_features:
     sns.violinplot(x="language", y=feature, data=df, inner="box")
-    plt.title(f"{feature} by language")
+    # Modified title for the feature
+    title = feature.replace('_', ' ').title()
+    # Ensure nPVI is displayed correctly
+    title = title.replace("Npvi", "nPVI")
+    plt.title(f"{title} by language")
     plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
@@ -41,7 +45,11 @@ for feature in rhythmic_features:
 for feature in rhythmic_features:
     try:
         sns.displot(data=df, x=feature, hue="language", kind="kde", fill=True)
-        plt.title(f"KDE of {feature} by language")
+        # Modified title for the feature
+        title = feature.replace('_', ' ').title()
+        # Ensure nPVI is displayed correctly
+        title = title.replace("Npvi", "nPVI")
+        plt.title(f"KDE of {title} by language")
         plt.tight_layout()
         plt.show()
     except Exception as e:
@@ -53,41 +61,86 @@ sns.heatmap(corr, annot=True, cmap="coolwarm")
 plt.title("Correlation matrix of rhythmic descriptors")
 plt.show()
 
-# ---------- COMPARATIVE ANALYSIS BY LANGUAGE ----------
+# ---------- COMPARATIVE ANALYSIS BY LANGUAGE (Save Results) ----------
 
-# ANOVA or Kruskal-Wallis tests
+anova_results = []
+posthoc_results = {}
+
 for feature in rhythmic_features:
-    groups = [g[feature].dropna() for _, g in df.groupby("language")]
-    if all(len(g) >= 3 for g in groups):  # avoid errors with very small samples
-        if all(stats.shapiro(g[:500])[1] > 0.05 for g in groups):  # normality
+    data = df[["language", feature]].dropna()
+    groups = [g[feature] for _, g in data.groupby("language")]
+
+    if all(len(g) >= 3 for g in groups):  # suficientes muestras
+        # Test de normalidad
+        normal = all(stats.shapiro(g[:500])[1] > 0.05 for g in groups)
+
+        if normal:
             stat, p = stats.f_oneway(*groups)
             test_type = "ANOVA"
         else:
             stat, p = stats.kruskal(*groups)
             test_type = "Kruskal-Wallis"
-        print(f"{test_type} for {feature}: stat = {stat:.2f}, p = {p:.4f}")
 
-        # Post-hoc test
+        anova_results.append({
+            "feature": feature,
+            "test": test_type,
+            "stat": stat,
+            "p_value": p
+        })
+
+        # Post-hoc
         if p < 0.05:
-            print("Post-hoc test (Tukey if ANOVA, Dunn if Kruskal)")
             if test_type == "ANOVA":
-                tukey = pairwise_tukeyhsd(df[feature].dropna(), df["language"][df[feature].notna()])
-                print(tukey.summary())
+                tukey = pairwise_tukeyhsd(data[feature], data["language"])
+                tukey_df = pd.DataFrame(data=tukey.summary().data[1:], columns=tukey.summary().data[0])
+                posthoc_results[feature] = tukey_df
             else:
-                dunn = sp.posthoc_dunn(df, val_col=feature, group_col="language", p_adjust="bonferroni")
-                print(dunn)
+                dunn = sp.posthoc_dunn(data, val_col=feature, group_col="language", p_adjust="bonferroni")
+                posthoc_results[feature] = dunn
+
     else:
-        print(f"Skipping {feature}: not enough samples per language.")
+        anova_results.append({
+            "feature": feature,
+            "test": "Skipped (insufficient data)",
+            "stat": np.nan,
+            "p_value": np.nan
+        })
 
-# ---------- GENRE AND STYLE CONTROL ----------
+# Guardar resultados ANOVA/Kruskal-Wallis
+anova_df = pd.DataFrame(anova_results)
+anova_df.to_csv("anova_kruskal_results.csv", index=False)
 
-# Boxplots by language and genre
-for feature in rhythmic_features:
-    g = sns.catplot(data=df, x="language", y=feature, hue="Genre", kind="box", height=6, aspect=2)
-    g.fig.suptitle(f"{feature} by language and genre")
-    g.set_xticklabels(rotation=45)
-    plt.tight_layout()
-    plt.show()
+# Guardar cada tabla post-hoc por separado
+for feature, result in posthoc_results.items():
+    filename = f"posthoc_{feature}.csv"
+    if isinstance(result, pd.DataFrame):
+        result.to_csv(filename)
+    else:
+        result.to_csv(filename)  # también guarda si es matriz de Dunn
+
+print("Resultados guardados en archivos CSV.")
+
+
+# ---------- Boxplots by genre (only English, only selected features) ----------
+
+selected_features = ["rhythmic_density", "nPVI", "norm_lz_complexity"]
+df_en = df[df["language"] == "English"]
+
+fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(18, 6))
+axes = axes.flatten()
+
+for i, feature in enumerate(selected_features):
+    sns.violinplot(data=df_en, x="genre", y=feature, ax=axes[i], inner="box", cut=0)
+    # Modified title for the feature
+    title = feature.replace('_', ' ').title()
+    # Ensure nPVI is displayed correctly
+    title = title.replace("Npvi", "nPVI")
+    axes[i].set_title(f"{title} by genre (English only)")
+    axes[i].tick_params(axis="x", rotation=45)
+
+plt.tight_layout()
+plt.show()
+
 
 # ---------- CLUSTERING & DIMENSIONALITY REDUCTION ----------
 
