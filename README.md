@@ -57,7 +57,7 @@ The system works with `.csv` files that reference symbolic music files (`.mxl` f
 
 3. Merge into a unified dataset (features folder):  
    - `all_features_clean.csv` (raw output)  
-   - `all_features_cleaned_filtered.csv` (e.g., filtered by language or genre)
+   - `all_features_cleaned_filtered.csv` (excluded pop/rock genres in languages other than English)
 
 ## Usage
 
