@@ -26,7 +26,8 @@ Clone the repository and install the required dependencies listed in `requiremen
 ```bash
 git clone https://github.com/oscarboyle/LanguageRhythm.git
 cd LanguageRhythm
-pip install -r requirements.txt```
+pip install -r requirements.txt
+```
 
 ## Data structure
 
