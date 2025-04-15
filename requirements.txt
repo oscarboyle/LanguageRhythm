@@ -1,0 +1,1 @@
+pandasnumpyseabornmatplotlibscipystatsmodelsscikit-posthocsscikit-learn
